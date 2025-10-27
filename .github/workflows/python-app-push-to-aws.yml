@@ -64,5 +64,5 @@ jobs:
       - name: Trigger CodeBuild
         run: |
           echo "Starting CodeBuild project..."
-          aws codebuild start-build --project-name github-actions-practice \
+          aws codebuild start-build --project-name WGithubBuilding \
             --region ${{ secrets.AWS_DEFAULT_REGION }}
