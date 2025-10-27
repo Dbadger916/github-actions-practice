@@ -2,8 +2,7 @@ version: 0.2
 
 env:
   variables:
-    AWS_DEFAULT_REGION: "us-east-1"
-    S3_BUCKET: "is3600github"
+    S3_BUCKET: "wgithubbucket"
     CODEARTIFACT_DOMAIN: "zabalytics"
     CODEARTIFACT_REPO: "pypi"
     PACKAGE_NAME: "file-encoder"
@@ -20,19 +19,28 @@ phases:
 
   pre_build:
     commands:
+      - echo "Running lint..."
       - ruff check src/file_encoder
 
   build:
     commands:
+      - echo "Running tests..."
       - export PYTHONPATH=$(pwd)/src
       - pytest -v --cov=file_encoder --cov-report=xml:coverage.xml --junitxml=pytest-report.xml
+      - echo "Building wheel..."
       - python -m build
 
   post_build:
     commands:
-      - if [ -f dist/*.whl ]; then
-          aws s3 cp dist/*.whl s3://$S3_BUCKET/wheels/;
-        fi
+      - echo "Listing dist directory..."
+      - ls -l dist/
+      - echo "Uploading wheel(s) to S3..."
+      - for file in dist/*.whl; do
+          if [ -f "$file" ]; then
+            aws s3 cp "$file" s3://$S3_BUCKET/wheels/ --region $AWS_DEFAULT_REGION;
+          fi
+        done
+      - echo "Publishing to CodeArtifact..."
       - export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
           --domain $CODEARTIFACT_DOMAIN \
           --query authorizationToken --output text \
@@ -43,9 +51,12 @@ phases:
           --format pypi \
           --query repositoryEndpoint --output text \
           --region $AWS_DEFAULT_REGION)
-      - if [ -f dist/*.whl ]; then
-          twine upload --repository-url $CODEARTIFACT_REPO_URL -u aws -p $CODEARTIFACT_AUTH_TOKEN dist/*.whl;
-        fi
+      - for file in dist/*.whl; do
+          if [ -f "$file" ]; then
+            twine upload --repository-url $CODEARTIFACT_REPO_URL \
+              -u aws -p $CODEARTIFACT_AUTH_TOKEN "$file";
+          fi
+        done
 
 artifacts:
   files:
