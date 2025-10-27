@@ -2,6 +2,7 @@ version: 0.2
 
 env:
   variables:
+    AWS_DEFAULT_REGION: "us-west-2"
     S3_BUCKET: "wgithubbucket"
     CODEARTIFACT_DOMAIN: "zabalytics"
     CODEARTIFACT_REPO: "pypi"
@@ -37,7 +38,7 @@ phases:
       - echo "Uploading wheel(s) to S3..."
       - for file in dist/*.whl; do
           if [ -f "$file" ]; then
-            aws s3 cp "$file" s3://$S3_BUCKET/wheels/ --region $AWS_DEFAULT_REGION;
+            aws s3 cp "$file" s3://$S3_BUCKET/wheels/;
           fi
         done
       - echo "Publishing to CodeArtifact..."
