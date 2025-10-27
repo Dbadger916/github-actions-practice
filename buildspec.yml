@@ -1,0 +1,54 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    S3_BUCKET: "is3600github"
+    CODEARTIFACT_DOMAIN: "zabalytics"
+    CODEARTIFACT_REPO: "pypi"
+    PACKAGE_NAME: "file-encoder"
+    PACKAGE_VERSION: "0.1.0"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.13
+    commands:
+      - python -m pip install --upgrade pip
+      - pip install -e ".[dev]"
+      - pip install build setuptools wheel ruff pytest pytest-cov twine awscli
+
+  pre_build:
+    commands:
+      - ruff check src/file_encoder
+
+  build:
+    commands:
+      - export PYTHONPATH=$(pwd)/src
+      - pytest -v --cov=file_encoder --cov-report=xml:coverage.xml --junitxml=pytest-report.xml
+      - python -m build
+
+  post_build:
+    commands:
+      - if [ -f dist/*.whl ]; then
+          aws s3 cp dist/*.whl s3://$S3_BUCKET/wheels/;
+        fi
+      - export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
+          --domain $CODEARTIFACT_DOMAIN \
+          --query authorizationToken --output text \
+          --region $AWS_DEFAULT_REGION)
+      - export CODEARTIFACT_REPO_URL=$(aws codeartifact get-repository-endpoint \
+          --domain $CODEARTIFACT_DOMAIN \
+          --repository $CODEARTIFACT_REPO \
+          --format pypi \
+          --query repositoryEndpoint --output text \
+          --region $AWS_DEFAULT_REGION)
+      - if [ -f dist/*.whl ]; then
+          twine upload --repository-url $CODEARTIFACT_REPO_URL -u aws -p $CODEARTIFACT_AUTH_TOKEN dist/*.whl;
+        fi
+
+artifacts:
+  files:
+    - coverage.xml
+    - pytest-report.xml
+    - dist/*.whl
