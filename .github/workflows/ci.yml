@@ -67,7 +67,7 @@ jobs:
     - name: Upload to CodeArtifact
       if: matrix.python-version == '3.13'
       run: |
+        pip install twine
         aws codeartifact login --tool pip --domain ${{ secrets.CODEARTIFACT_DOMAIN }} --repository ${{ secrets.CODEARTIFACT_REPOSITORY }}
         aws codeartifact login --tool twine --domain ${{ secrets.CODEARTIFACT_DOMAIN }} --repository ${{ secrets.CODEARTIFACT_REPOSITORY }}
-        pip install twine
         twine upload --repository codeartifact dist/*.whl
